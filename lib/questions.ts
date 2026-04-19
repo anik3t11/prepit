@@ -17,15 +17,16 @@ export interface FullQuestion {
   time: string;
   description: string;
   hints: string[];
+  // scoring — theory questions
+  required_keywords?: string[]; // MUST cover ≥1 of these or score is capped at 25
+  keywords?: string[];          // nice-to-have concepts
+  sampleAnswer?: string;
   // coding only
   examples?: { input: string; output: string; explanation?: string }[];
   constraints?: string[];
   starterCode?: string;
   solution?: string;
   testCases?: TestCase[];
-  // theory only
-  keywords?: string[];
-  sampleAnswer?: string;
 }
 
 const QUESTIONS_LIST: FullQuestion[] = [
