@@ -61,7 +61,7 @@ export default function Footer() {
 
         <div className="border-t border-white/5 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-sm text-slate-600">
-            © 2025 PrepIt. All rights reserved.
+            © 2026 PrepIt. All rights reserved.
           </p>
           <p className="text-sm text-slate-600">
             Built for engineers, by engineers.

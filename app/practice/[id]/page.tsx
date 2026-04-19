@@ -127,7 +127,7 @@ export default function PracticeQuestionPage() {
   };
 
   return (
-    <div className="max-w-7xl flex gap-4 h-[calc(100vh-7rem)]">
+    <div className="flex gap-4 h-full">
       {/* Left panel — problem */}
       <div className="w-[420px] shrink-0 flex flex-col glass border border-white/7 rounded-2xl overflow-hidden">
         {/* Header */}
