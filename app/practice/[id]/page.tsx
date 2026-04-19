@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { runCode, type ExecutionResult } from "@/lib/judge0";
 import { getQuestion, type FullQuestion } from "@/lib/questions";
+import { evaluateAnswer, type EvalResult } from "@/lib/evaluator";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 
@@ -24,61 +25,8 @@ const difficultyStyle: Record<string, string> = {
   Hard:   "text-rose-400 bg-rose-500/10 border-rose-500/20",
 };
 
-// ─── Theory answer evaluator (same heuristic as interview session) ────────────
-
-interface TheoryFeedback {
-  score: number;
-  strengths: string[];
-  improvements: string[];
-}
-
-function evaluateTheory(answer: string, question: FullQuestion): TheoryFeedback {
-  const lower   = answer.toLowerCase().trim();
-  const words   = lower.split(/\s+/).filter(Boolean);
-  const wordCount = words.length;
-
-  const lengthScore =
-    wordCount >= 120 ? 25 :
-    wordCount >= 70  ? 18 :
-    wordCount >= 35  ? 10 :
-    wordCount >= 10  ? 4  : 0;
-
-  const kws = question.keywords ?? [];
-  const hit  = kws.filter((k) => lower.includes(k.toLowerCase()));
-  const keywordScore = kws.length > 0
-    ? Math.round((hit.length / kws.length) * 50)
-    : 25;
-
-  let structureScore = 0;
-  if (/\b(for example|such as|for instance|e\.g\.|consider)\b/i.test(answer)) structureScore += 10;
-  if (/\b(however|but|whereas|trade-?off|compared to|on the other hand|advantage|disadvantage)\b/i.test(answer)) structureScore += 10;
-
-  const score = Math.min(100, Math.max(8, 5 + lengthScore + keywordScore + structureScore));
-
-  const strengths:    string[] = [];
-  const improvements: string[] = [];
-
-  if (wordCount >= 70) {
-    strengths.push("Well-developed answer with sufficient depth");
-  } else if (wordCount >= 30) {
-    improvements.push("Expand your response — aim for 70+ words with concrete examples");
-  } else {
-    improvements.push("Answer is too brief. Add specific details, examples, and reasoning (70+ words)");
-  }
-
-  if (hit.length > 0) strengths.push(`Covered key concepts: ${hit.slice(0, 3).join(", ")}`);
-
-  const missed = kws.filter((k) => !lower.includes(k.toLowerCase()));
-  if (missed.length > 0) improvements.push(`Key concepts to mention: ${missed.slice(0, 3).join(", ")}`);
-
-  if (/\b(for example|such as|e\.g\.|for instance)\b/i.test(answer)) {
-    strengths.push("Good use of concrete examples");
-  } else {
-    improvements.push("Add a concrete real-world example to strengthen your answer");
-  }
-
-  return { score, strengths: strengths.slice(0, 3), improvements: improvements.slice(0, 3) };
-}
+// Theory feedback type alias
+type TheoryFeedback = EvalResult;
 
 // ─── Coding test harness builder ─────────────────────────────────────────────
 
@@ -437,7 +385,7 @@ function TheoryView({ question }: { question: FullQuestion }) {
     setEvaluating(true);
     setFeedback(null);
     await new Promise((r) => setTimeout(r, 800));
-    setFeedback(evaluateTheory(answer, question));
+    setFeedback(evaluateAnswer(answer, question, "theory"));
     setEvaluating(false);
   };
 

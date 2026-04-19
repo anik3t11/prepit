@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import { evaluateAnswer as evalHeuristic } from "@/lib/evaluator";
 import {
   Mic, MicOff, Clock, ChevronRight,
   CheckCircle2, XCircle, Loader2, Zap, SkipForward,
@@ -495,88 +496,9 @@ ROLE_BANKS["SAP Consultant"]     = [...BEHAVIORAL_BANK];
 // ─── Evaluation Logic ────────────────────────────────────────────────────────
 
 function evaluateAnswer(answer: string, question: Question): AIFeedback {
-  const lower = answer.toLowerCase().trim();
-  const wordCount = lower.split(/\s+/).filter(Boolean).length;
-
-  // 1. Length score (max 25)
-  const lengthScore =
-    wordCount >= 120 ? 25 :
-    wordCount >= 70  ? 18 :
-    wordCount >= 35  ? 10 :
-    wordCount >= 10  ? 4  : 0;
-
-  // 2. Keyword coverage (max 50)
-  const kws = question.keywords;
-  const hit  = kws.filter((k) => lower.includes(k.toLowerCase()));
-  const keywordScore = kws.length > 0
-    ? Math.round((hit.length / kws.length) * 50)
-    : 25; // behavioral has no keywords — give neutral score
-
-  // 3. Structure bonus (max 20)
-  let structureScore = 0;
-  if (question.type === "behavioral") {
-    if (/\b(when|situation|project|team|at work|in my|there was|once|last year)\b/i.test(answer)) structureScore += 7;
-    if (/\b(i |we |decided|implemented|took action|used|helped|resolved|led|escalated)\b/i.test(answer)) structureScore += 7;
-    if (/\b(result|outcome|achieved|improved|learned|led to|because of|impact|ended up)\b/i.test(answer)) structureScore += 6;
-  } else {
-    if (/\b(for example|such as|for instance|e\.g\.|like when|consider)\b/i.test(answer)) structureScore += 10;
-    if (/\b(however|but|whereas|trade-?off|compared to|on the other hand|advantage|disadvantage|pros|cons)\b/i.test(answer)) structureScore += 10;
-  }
-
-  const rawScore = 5 + lengthScore + keywordScore + structureScore;
-  const score    = Math.min(100, Math.max(8, rawScore));
-
-  // ── Generate specific, answer-aware feedback ──
-  const strengths: string[]    = [];
-  const improvements: string[] = [];
-
-  // Length feedback
-  if (wordCount >= 70) {
-    strengths.push("Well-developed answer with sufficient depth");
-  } else if (wordCount >= 30) {
-    improvements.push("Expand your response — aim for 70+ words with concrete examples or technical detail");
-  } else {
-    improvements.push("Answer is too brief. Provide specific details, examples, and reasoning (aim for 70+ words)");
-  }
-
-  // Keyword feedback (technical questions)
-  if (kws.length > 0) {
-    if (hit.length > 0) {
-      strengths.push(`Correctly covered: ${hit.slice(0, 3).join(", ")}`);
-    }
-    const missed = kws.filter((k) => !lower.includes(k.toLowerCase()));
-    if (missed.length > 0) {
-      improvements.push(`Key concepts to also mention: ${missed.slice(0, 3).join(", ")}`);
-    }
-  }
-
-  // Behavioral-specific
-  if (question.type === "behavioral") {
-    if (structureScore >= 14) {
-      strengths.push("Good STAR structure — situation, action, and result are all present");
-    } else if (structureScore < 7) {
-      improvements.push("Use the STAR method: Situation → Task → Action → Result");
-    }
-    if (!/\b(result|outcome|achieved|improved|learned|impact|led to|ended up)\b/i.test(answer)) {
-      improvements.push("Quantify or describe the outcome — what changed because of your actions?");
-    }
-  } else {
-    // Technical
-    if (/\b(for example|such as|for instance|e\.g\.|consider)\b/i.test(answer)) {
-      strengths.push("Good use of concrete examples to support your explanation");
-    } else {
-      improvements.push("Add a concrete real-world example or use case to strengthen your answer");
-    }
-    if (question.type === "system-design" && wordCount < 80) {
-      improvements.push("System design answers need more depth — cover trade-offs, scale, and failure modes");
-    }
-  }
-
-  return {
-    score,
-    strengths:    strengths.slice(0, 3),
-    improvements: improvements.slice(0, 3),
-  };
+  const qType = question.type === "behavioral" ? "behavioral" : "technical";
+  const result = evalHeuristic(answer, { keywords: question.keywords }, qType);
+  return { score: result.score, strengths: result.strengths, improvements: result.improvements };
 }
 
 // ─── Question Selection ──────────────────────────────────────────────────────
