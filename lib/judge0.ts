@@ -1,15 +1,11 @@
-// Judge0 CE - Free open source code execution engine
-// Self-host or use RapidAPI free tier
-
-const JUDGE0_URL = process.env.NEXT_PUBLIC_JUDGE0_URL || "https://judge0-ce.p.rapidapi.com";
-const JUDGE0_KEY = process.env.JUDGE0_API_KEY || "";
+// Judge0 CE — shared language map used by client pages and the /api/execute route
 
 export const LANGUAGE_IDS: Record<string, number> = {
-  javascript: 63,  // Node.js
+  javascript: 63,
   typescript: 74,
-  python: 71,      // Python 3
+  python: 71,
   java: 62,
-  cpp: 54,         // C++ (GCC 9.2.0)
+  cpp: 54,
   c: 50,
   go: 60,
   rust: 73,
@@ -19,40 +15,30 @@ export const LANGUAGE_IDS: Record<string, number> = {
   kotlin: 78,
   swift: 83,
   r: 80,
-  sql: 82,         // SQLite
+  sql: 82,
 };
 
 export interface ExecutionResult {
-  stdout: string | null;
-  stderr: string | null;
-  compile_output: string | null;
-  message: string | null;
+  stdout: string;
+  stderr: string;
+  compile_output: string;
   time: string | null;
   memory: number | null;
-  status: {
-    id: number;
-    description: string;
-  };
+  status: number;
+  statusText: string;
+  error?: string;
 }
 
-export async function executeCode(
+/** Call from client components via the /api/execute proxy (avoids CORS + keeps API key server-side) */
+export async function runCode(
   code: string,
-  languageId: number,
+  language: string,
   stdin?: string
 ): Promise<ExecutionResult> {
-  const submitRes = await fetch(`${JUDGE0_URL}/submissions?base64_encoded=false&wait=true`, {
+  const res = await fetch("/api/execute", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-RapidAPI-Key": JUDGE0_KEY,
-      "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com",
-    },
-    body: JSON.stringify({
-      source_code: code,
-      language_id: languageId,
-      stdin: stdin || "",
-    }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code, language, stdin: stdin ?? "" }),
   });
-
-  return submitRes.json();
+  return res.json();
 }

@@ -5,8 +5,9 @@ import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import {
   Play, RotateCcw, Settings, ChevronDown, Copy, CheckCheck,
-  Terminal, Loader2, Maximize2, Code2,
+  Terminal, Loader2, Maximize2, Code2, AlertCircle, Clock,
 } from "lucide-react";
+import { runCode, type ExecutionResult } from "@/lib/judge0";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 
@@ -195,7 +196,7 @@ ORDER BY avg_salary DESC;
 export default function IDEPage() {
   const [language, setLanguage] = useState("javascript");
   const [code, setCode] = useState(starterCode["javascript"]);
-  const [output, setOutput] = useState("");
+  const [result, setResult] = useState<ExecutionResult | null>(null);
   const [running, setRunning] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
@@ -205,21 +206,19 @@ export default function IDEPage() {
     setLanguage(lang);
     setCode(starterCode[lang] || `// Start coding in ${lang}`);
     setShowLangMenu(false);
-    setOutput("");
+    setResult(null);
   };
 
   const handleRun = async () => {
     setRunning(true);
-    setOutput("");
-    // Simulate Judge0 API call
-    await new Promise((r) => setTimeout(r, 1500));
-    setOutput(
-      language === "python"
-        ? "[0, 1]\n[1, 2]\n\nExecution time: 0.043s | Memory: 14.2 MB"
-        : language === "sql"
-        ? "Query executed successfully.\nReturned 3 rows.\n\nExecution time: 0.021s"
-        : "[0, 1]\n[1, 2]\n\nExecution time: 0.12ms | Memory: 2.1 MB"
-    );
+    setResult(null);
+    setOutputTab("output");
+    try {
+      const res = await runCode(code, language);
+      setResult(res);
+    } catch {
+      setResult({ stdout: "", stderr: "Network error — could not reach execution server.", compile_output: "", time: null, memory: null, status: 0, statusText: "Error" });
+    }
     setRunning(false);
   };
 
@@ -231,7 +230,7 @@ export default function IDEPage() {
 
   const handleReset = () => {
     setCode(starterCode[language] || "");
-    setOutput("");
+    setResult(null);
   };
 
   const activeLang = languages.find((l) => l.id === language);
@@ -365,8 +364,63 @@ export default function IDEPage() {
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-4">
             {outputTab === "output" ? (
-              output ? (
-                <pre className="text-xs text-emerald-300 font-mono leading-relaxed whitespace-pre-wrap">{output}</pre>
+              result ? (
+                <div className="space-y-3">
+                  {/* Status badge */}
+                  <div className={`flex items-center gap-2 text-xs font-medium px-2.5 py-1.5 rounded-lg w-fit ${
+                    result.status === 3 ? "bg-emerald-500/15 text-emerald-400" :
+                    result.status === 6 ? "bg-rose-500/15 text-rose-400" :
+                    result.status === 0 ? "bg-rose-500/15 text-rose-400" :
+                    "bg-amber-500/15 text-amber-400"
+                  }`}>
+                    {result.status === 3 ? "✓" : "✗"} {result.statusText}
+                  </div>
+
+                  {/* stdout */}
+                  {result.stdout && (
+                    <div>
+                      <p className="text-xs text-slate-500 mb-1">Output</p>
+                      <pre className="text-xs text-emerald-300 font-mono leading-relaxed whitespace-pre-wrap bg-white/3 rounded-lg p-3">{result.stdout}</pre>
+                    </div>
+                  )}
+
+                  {/* compile error */}
+                  {result.compile_output && (
+                    <div>
+                      <p className="text-xs text-rose-400 mb-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />Compile Error</p>
+                      <pre className="text-xs text-rose-300 font-mono leading-relaxed whitespace-pre-wrap bg-rose-500/5 rounded-lg p-3 border border-rose-500/15">{result.compile_output}</pre>
+                    </div>
+                  )}
+
+                  {/* stderr */}
+                  {result.stderr && (
+                    <div>
+                      <p className="text-xs text-amber-400 mb-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />Stderr</p>
+                      <pre className="text-xs text-amber-300 font-mono leading-relaxed whitespace-pre-wrap bg-amber-500/5 rounded-lg p-3 border border-amber-500/15">{result.stderr}</pre>
+                    </div>
+                  )}
+
+                  {/* error from our proxy */}
+                  {result.error && (
+                    <pre className="text-xs text-rose-300 font-mono bg-rose-500/5 rounded-lg p-3 border border-rose-500/15">{result.error}</pre>
+                  )}
+
+                  {/* Stats */}
+                  {(result.time || result.memory) && (
+                    <div className="flex gap-3 pt-1 border-t border-white/5">
+                      {result.time && (
+                        <span className="text-xs text-slate-500 flex items-center gap-1">
+                          <Clock className="w-3 h-3" />{result.time}s
+                        </span>
+                      )}
+                      {result.memory && (
+                        <span className="text-xs text-slate-500">
+                          {(result.memory / 1024).toFixed(1)} MB
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-center text-slate-600">
                   <Terminal className="w-8 h-8 mb-2 opacity-30" />

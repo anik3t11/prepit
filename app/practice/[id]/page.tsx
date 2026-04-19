@@ -8,7 +8,9 @@ import {
   ArrowLeft, ChevronRight, CheckCircle2, XCircle, Lightbulb,
   Code2, FileText, Clock, Bookmark, BookmarkCheck,
   Loader2, Zap, BarChart2, RefreshCw, ThumbsUp, ThumbsDown,
+  AlertTriangle, Terminal,
 } from "lucide-react";
+import { runCode, type ExecutionResult } from "@/lib/judge0";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 
@@ -60,6 +62,18 @@ You can return the answer in any order.`,
 };`,
 };
 
+// Test cases for submit evaluation
+const TEST_CASES = [
+  { nums: [2, 7, 11, 15], target: 9,  expected: "[0,1]",  label: "nums=[2,7,11,15], target=9" },
+  { nums: [3, 2, 4],      target: 6,  expected: "[1,2]",  label: "nums=[3,2,4], target=6"     },
+  { nums: [3, 3],          target: 6,  expected: "[0,1]",  label: "nums=[3,3], target=6"       },
+];
+
+/** Appends a console.log call so Judge0 can run the function */
+function buildRunCode(userCode: string, nums: number[], target: number): string {
+  return `${userCode}\nconsole.log(JSON.stringify(twoSum(${JSON.stringify(nums)}, ${target})));`;
+}
+
 const difficultyStyle: Record<string, string> = {
   Easy: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
   Medium: "text-amber-400 bg-amber-500/10 border-amber-500/20",
@@ -78,6 +92,14 @@ interface AIFeedback {
   suggestions: string[];
 }
 
+interface TestResult {
+  label: string;
+  passed: boolean;
+  stdout: string;
+  expected: string;
+  error?: string;
+}
+
 export default function PracticeQuestionPage() {
   const [activeTab, setActiveTab] = useState<Tab>("description");
   const [mode, setMode] = useState<Mode>("code");
@@ -85,41 +107,112 @@ export default function PracticeQuestionPage() {
   const [textAnswer, setTextAnswer] = useState("");
   const [hintIndex, setHintIndex] = useState(-1);
   const [bookmarked, setBookmarked] = useState(false);
+
+  // Run state
   const [running, setRunning] = useState(false);
-  const [output, setOutput] = useState("");
+  const [runResult, setRunResult] = useState<ExecutionResult | null>(null);
+
+  // Submit / AI state
   const [evaluating, setEvaluating] = useState(false);
+  const [testResults, setTestResults] = useState<TestResult[]>([]);
   const [aiFeedback, setAiFeedback] = useState<AIFeedback | null>(null);
   const [feedbackGiven, setFeedbackGiven] = useState<null | "up" | "down">(null);
 
   const handleRun = async () => {
     setRunning(true);
-    setOutput("");
-    await new Promise((r) => setTimeout(r, 1500));
-    setOutput("[0, 1]\n[1, 2]\n\nAll test cases passed ✓\nExecution time: 0.12ms | Memory: 2.1 MB");
+    setRunResult(null);
+    try {
+      // Run against example 1 by default
+      const fullCode = buildRunCode(code, TEST_CASES[0].nums, TEST_CASES[0].target);
+      const result = await runCode(fullCode, "javascript");
+      setRunResult(result);
+    } catch (err) {
+      setRunResult({
+        stdout: "",
+        stderr: "",
+        compile_output: "",
+        time: null,
+        memory: null,
+        status: 0,
+        statusText: "Network Error",
+        error: err instanceof Error ? err.message : "Failed to reach execution server",
+      });
+    }
     setRunning(false);
   };
 
   const handleSubmit = async () => {
     setEvaluating(true);
     setAiFeedback(null);
+    setTestResults([]);
     setActiveTab("ai");
-    await new Promise((r) => setTimeout(r, 2200));
+
+    const results: TestResult[] = [];
+
+    for (const tc of TEST_CASES) {
+      try {
+        const fullCode = buildRunCode(code, tc.nums, tc.target);
+        const result = await runCode(fullCode, "javascript");
+        const stdout = (result.stdout ?? "").trim();
+        const passed =
+          result.status === 3 &&
+          !result.compile_output &&
+          !result.stderr &&
+          stdout === tc.expected;
+        results.push({
+          label: tc.label,
+          passed,
+          stdout,
+          expected: tc.expected,
+          error: result.compile_output || result.stderr || result.error || undefined,
+        });
+      } catch (err) {
+        results.push({
+          label: tc.label,
+          passed: false,
+          stdout: "",
+          expected: tc.expected,
+          error: err instanceof Error ? err.message : "Network error",
+        });
+      }
+    }
+
+    setTestResults(results);
+
+    const passedCount = results.filter((r) => r.passed).length;
+    const verdict: "pass" | "partial" | "fail" =
+      passedCount === results.length ? "pass" : passedCount > 0 ? "partial" : "fail";
+    const score = Math.round((passedCount / results.length) * 100);
+
     setAiFeedback({
-      verdict: "pass",
-      score: 92,
+      verdict,
+      score,
       timeComplexity: "O(n)",
       spaceComplexity: "O(n)",
-      comments: [
-        "Great use of a hash map to achieve O(n) time complexity.",
-        "Clean, readable code with proper variable naming.",
-        "Correctly handles the single-pass approach.",
-      ],
+      comments:
+        verdict === "pass"
+          ? [
+              "All test cases passed — great work!",
+              "Your solution correctly handles positive indices and duplicate values.",
+            ]
+          : [
+              `${passedCount} of ${results.length} test cases passed.`,
+              "Check the failing cases for off-by-one errors or missing edge cases.",
+            ],
       suggestions: [
-        "Consider adding input validation for edge cases.",
-        "You could use early return to make the logic cleaner.",
+        "Consider adding input validation for empty arrays.",
+        "Try to achieve O(n) time complexity using a hash map.",
       ],
     });
+
     setEvaluating(false);
+  };
+
+  const handleReset = () => {
+    setCode(question.starterCode);
+    setRunResult(null);
+    setTestResults([]);
+    setAiFeedback(null);
   };
 
   const showNextHint = () => {
@@ -270,16 +363,18 @@ export default function PracticeQuestionPage() {
               {evaluating && (
                 <div className="flex flex-col items-center justify-center py-12 gap-3 text-slate-500">
                   <Loader2 className="w-7 h-7 animate-spin text-indigo-400" />
-                  <p className="text-sm">Evaluating your solution…</p>
+                  <p className="text-sm">Running test cases…</p>
                 </div>
               )}
-              {!evaluating && !aiFeedback && (
+
+              {!evaluating && testResults.length === 0 && !aiFeedback && (
                 <div className="flex flex-col items-center justify-center py-12 gap-3 text-slate-600 text-center">
                   <Zap className="w-8 h-8 opacity-30" />
-                  <p className="text-sm">Submit your solution to get AI feedback</p>
+                  <p className="text-sm">Submit your solution to run all test cases</p>
                 </div>
               )}
-              {!evaluating && aiFeedback && (
+
+              {!evaluating && testResults.length > 0 && aiFeedback && (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -309,6 +404,39 @@ export default function PracticeQuestionPage() {
                     <div className="text-2xl font-black text-white">{aiFeedback.score}<span className="text-sm font-normal text-slate-500">/100</span></div>
                   </div>
 
+                  {/* Per-test results */}
+                  <div>
+                    <p className="text-xs font-medium text-slate-400 mb-2">Test Cases</p>
+                    <div className="space-y-2">
+                      {testResults.map((tr, i) => (
+                        <div
+                          key={i}
+                          className={`rounded-xl p-3 border text-xs ${
+                            tr.passed
+                              ? "bg-emerald-500/5 border-emerald-500/15"
+                              : "bg-rose-500/5 border-rose-500/15"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-mono text-slate-400">{tr.label}</span>
+                            {tr.passed ? (
+                              <span className="text-emerald-400 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Pass</span>
+                            ) : (
+                              <span className="text-rose-400 flex items-center gap-1"><XCircle className="w-3 h-3" /> Fail</span>
+                            )}
+                          </div>
+                          {!tr.passed && (
+                            <div className="mt-1.5 space-y-1 font-mono">
+                              <div><span className="text-slate-500">Expected: </span><span className="text-emerald-300">{tr.expected}</span></div>
+                              {tr.stdout && <div><span className="text-slate-500">Got: </span><span className="text-rose-300">{tr.stdout}</span></div>}
+                              {tr.error && <div className="text-amber-400 truncate">{tr.error}</div>}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* Complexity */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-white/3 rounded-xl p-3 text-center">
@@ -324,7 +452,7 @@ export default function PracticeQuestionPage() {
                   {/* Comments */}
                   <div>
                     <p className="text-xs font-medium text-emerald-400 mb-2 flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" /> What you did well
+                      <CheckCircle2 className="w-3 h-3" /> Assessment
                     </p>
                     <ul className="space-y-1.5">
                       {aiFeedback.comments.map((c) => (
@@ -350,7 +478,7 @@ export default function PracticeQuestionPage() {
 
                   {/* Helpful? */}
                   <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                    <span className="text-xs text-slate-600">Was this feedback helpful?</span>
+                    <span className="text-xs text-slate-600">Was this helpful?</span>
                     <div className="flex gap-2">
                       <button
                         onClick={() => setFeedbackGiven("up")}
@@ -404,7 +532,7 @@ export default function PracticeQuestionPage() {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => { setCode(question.starterCode); setOutput(""); }}
+              onClick={handleReset}
               className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-500 hover:text-slate-300 transition-colors"
             >
               <RefreshCw className="w-3.5 h-3.5" />
@@ -412,7 +540,7 @@ export default function PracticeQuestionPage() {
             </button>
             <button
               onClick={handleRun}
-              disabled={running}
+              disabled={running || evaluating}
               className="flex items-center gap-1.5 px-3 py-1.5 glass border border-white/10 text-slate-300 text-xs rounded-lg hover:border-white/20 transition-all disabled:opacity-60"
             >
               {running ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Clock className="w-3.5 h-3.5" />}
@@ -420,7 +548,7 @@ export default function PracticeQuestionPage() {
             </button>
             <button
               onClick={handleSubmit}
-              disabled={evaluating}
+              disabled={evaluating || running}
               className="flex items-center gap-1.5 px-4 py-1.5 bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-xs font-medium rounded-lg hover:shadow-lg hover:shadow-indigo-500/20 transition-all disabled:opacity-60"
             >
               {evaluating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ChevronRight className="w-3.5 h-3.5" />}
@@ -457,13 +585,75 @@ export default function PracticeQuestionPage() {
                 />
               </div>
 
-              {/* Output */}
-              <div className="h-40 border-t border-white/5 shrink-0 bg-[#0a0a15] overflow-y-auto p-4">
-                {output ? (
-                  <pre className="text-xs text-emerald-300 font-mono leading-relaxed whitespace-pre-wrap">{output}</pre>
-                ) : (
-                  <div className="h-full flex items-center justify-center text-slate-600 text-xs">
+              {/* Output panel */}
+              <div className="h-44 border-t border-white/5 shrink-0 bg-[#0a0a15] overflow-y-auto">
+                {!runResult && !running && (
+                  <div className="h-full flex items-center justify-center text-slate-600 text-xs gap-2">
+                    <Terminal className="w-4 h-4 opacity-50" />
                     Click &quot;Run&quot; to test your solution
+                  </div>
+                )}
+
+                {running && (
+                  <div className="h-full flex items-center justify-center text-slate-500 text-xs gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
+                    Executing…
+                  </div>
+                )}
+
+                {runResult && !running && (
+                  <div className="p-4 space-y-3">
+                    {/* Status row */}
+                    <div className="flex items-center justify-between">
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                        runResult.status === 3
+                          ? "bg-emerald-500/15 text-emerald-400"
+                          : "bg-rose-500/15 text-rose-400"
+                      }`}>
+                        {runResult.statusText || (runResult.error ? "Error" : "Unknown")}
+                      </span>
+                      {(runResult.time || runResult.memory) && (
+                        <span className="text-xs text-slate-600 font-mono">
+                          {runResult.time && `${runResult.time}s`}
+                          {runResult.time && runResult.memory && " · "}
+                          {runResult.memory && `${runResult.memory} KB`}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* stdout */}
+                    {runResult.stdout && (
+                      <pre className="text-xs text-emerald-300 font-mono leading-relaxed whitespace-pre-wrap">
+                        {runResult.stdout}
+                      </pre>
+                    )}
+
+                    {/* Compile error */}
+                    {runResult.compile_output && (
+                      <div>
+                        <p className="text-xs text-rose-400 font-medium mb-1 flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" /> Compilation Error
+                        </p>
+                        <pre className="text-xs text-rose-300/80 font-mono leading-relaxed whitespace-pre-wrap bg-rose-500/5 rounded-lg p-2">
+                          {runResult.compile_output}
+                        </pre>
+                      </div>
+                    )}
+
+                    {/* stderr */}
+                    {runResult.stderr && (
+                      <div>
+                        <p className="text-xs text-amber-400 font-medium mb-1">stderr</p>
+                        <pre className="text-xs text-amber-300/80 font-mono leading-relaxed whitespace-pre-wrap bg-amber-500/5 rounded-lg p-2">
+                          {runResult.stderr}
+                        </pre>
+                      </div>
+                    )}
+
+                    {/* Network / API error */}
+                    {runResult.error && (
+                      <div className="text-xs text-rose-400 font-mono">{runResult.error}</div>
+                    )}
                   </div>
                 )}
               </div>
