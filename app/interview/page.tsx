@@ -340,7 +340,10 @@ export default function InterviewPage() {
                 ))}
               </div>
 
-              <button onClick={() => window.location.href = "/interview/session"}
+              <button onClick={() => {
+                localStorage.setItem("prepit_session_config", JSON.stringify({ ...config, hasJD: !!jdText.trim() }));
+                window.location.href = "/interview/session";
+              }}
                 className="w-full flex items-center justify-center gap-2 py-4 bg-gradient-to-r from-indigo-500 to-violet-500 text-white font-semibold rounded-xl hover:shadow-xl hover:shadow-indigo-500/30 transition-all text-lg">
                 <PlayCircle className="w-5 h-5" />Start Interview
               </button>
