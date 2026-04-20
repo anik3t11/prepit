@@ -1,4 +1,4 @@
-export type QuestionType = "coding" | "theory";
+export type QuestionType = "coding" | "theory" | "mcq" | "behavioral";
 
 export interface TestCase {
   nums?: number[]; target?: number; // Two Sum
@@ -21,6 +21,10 @@ export interface FullQuestion {
   required_keywords?: string[]; // MUST cover ≥1 of these or score is capped at 25
   keywords?: string[];          // nice-to-have concepts
   sampleAnswer?: string;
+  // mcq only
+  options?: string[];       // four answer choices
+  correctAnswer?: number;   // 0-based index of correct option
+  explanation?: string;     // shown after reveal
   // coding only
   examples?: { input: string; output: string; explanation?: string }[];
   constraints?: string[];
@@ -1283,6 +1287,261 @@ Use a specific example. Show: the situation, how you framed the feedback, how th
     hints: ["Don't say 'in your position' (too aggressive) or 'I don't know' (unprepared)", "Connect your growth to the company's mission — shows you've researched them", "Be honest about skill areas you want to develop"],
     keywords: ["growth", "ambition", "company alignment", "skills", "career path", "realistic", "contribution", "long-term"],
   },
+  // ─── DATA ANALYST — MCQ ──────────────────────────────────────────────────────
+
+  {
+    id: 151, type: "mcq", difficulty: "Easy", time: "2 min",
+    title: "SQL: HAVING vs WHERE",
+    track: "Data Analyst", tags: ["SQL"],
+    description: "Which clause is used to filter results **after** a GROUP BY aggregation?",
+    hints: ["WHERE filters individual rows before grouping; this clause filters groups after aggregation."],
+    options: ["WHERE", "HAVING", "FILTER BY", "QUALIFY"],
+    correctAnswer: 1,
+    explanation: "HAVING filters aggregated groups (e.g., HAVING COUNT(*) > 5). WHERE cannot reference aggregate functions.",
+  },
+  {
+    id: 152, type: "mcq", difficulty: "Easy", time: "2 min",
+    title: "SQL: NULL comparison",
+    track: "Data Analyst", tags: ["SQL"],
+    description: "What does the expression `NULL = NULL` evaluate to in SQL?",
+    hints: ["NULL represents an unknown value. Comparing two unknowns doesn't produce TRUE or FALSE."],
+    options: ["TRUE", "FALSE", "NULL (UNKNOWN)", "1"],
+    correctAnswer: 2,
+    explanation: "NULL = NULL evaluates to NULL (UNKNOWN) in SQL. Use IS NULL or IS NOT NULL to check for nulls.",
+  },
+  {
+    id: 153, type: "mcq", difficulty: "Easy", time: "2 min",
+    title: "SQL: RANK vs DENSE_RANK gaps",
+    track: "Data Analyst", tags: ["SQL", "Window Functions"],
+    description: "Two employees share rank 2 in a salary window. Which function will produce rank 4 for the next employee?",
+    hints: ["One function leaves a gap in the sequence after a tie; the other doesn't."],
+    options: ["ROW_NUMBER", "DENSE_RANK", "RANK", "NTILE"],
+    correctAnswer: 2,
+    explanation: "RANK skips numbers after ties (1, 2, 2, 4). DENSE_RANK does not skip (1, 2, 2, 3). ROW_NUMBER assigns unique sequential numbers regardless of ties.",
+  },
+  {
+    id: 154, type: "mcq", difficulty: "Easy", time: "2 min",
+    title: "Python Pandas: detect missing values",
+    track: "Data Analyst", tags: ["Python", "Pandas"],
+    description: "Which Pandas expression gives the count of missing values per column?",
+    hints: ["Chain two Pandas methods — one to detect nulls, one to count them."],
+    options: ["df.missing()", "df.count_null()", "df.isnull().sum()", "df.describe()"],
+    correctAnswer: 2,
+    explanation: "df.isnull() returns a boolean DataFrame (True where NaN). Calling .sum() on it counts the True values per column.",
+  },
+  {
+    id: 155, type: "mcq", difficulty: "Medium", time: "2 min",
+    title: "Statistics: p-value meaning",
+    track: "Data Analyst", tags: ["Statistics"],
+    description: "A p-value of 0.03 in a hypothesis test means:",
+    hints: ["p-value is calculated assuming the null hypothesis is true — it is NOT the probability the null is correct."],
+    options: [
+      "There is a 3% chance the null hypothesis is correct",
+      "If the null were true, there is a 3% chance of observing data this extreme or more",
+      "The effect size is 3%",
+      "The alternative hypothesis has 97% probability of being true",
+    ],
+    correctAnswer: 1,
+    explanation: "p-value = P(data this extreme | null is true). It does NOT tell you P(null is true). Confusing the two is a very common error.",
+  },
+  {
+    id: 156, type: "mcq", difficulty: "Easy", time: "2 min",
+    title: "Statistics: mean vs median",
+    track: "Data Analyst", tags: ["Statistics"],
+    description: "You have a salary dataset with one executive earning $5M while 99 employees earn $60K. Which measure of central tendency should you report for a 'typical' salary?",
+    hints: ["Which measure is resistant to extreme values (outliers)?"],
+    options: ["Mean — it uses all data points", "Median — it is not affected by the outlier", "Mode — the most frequent salary", "Standard deviation"],
+    correctAnswer: 1,
+    explanation: "The mean would be pulled up dramatically by the $5M outlier. Median splits the distribution at the middle value and is robust to extreme observations.",
+  },
+  {
+    id: 157, type: "mcq", difficulty: "Easy", time: "2 min",
+    title: "Data Warehousing: star schema",
+    track: "Data Analyst", tags: ["Data Warehousing"],
+    description: "In a star schema, what is the role of the **fact table**?",
+    hints: ["Think about which table stores quantitative, measurable business events vs descriptive attributes."],
+    options: [
+      "Stores descriptive attributes about business entities (customer name, region)",
+      "Contains foreign keys to dimension tables and stores measurable metrics (revenue, quantity)",
+      "Indexes dimension tables for faster joins",
+      "Holds raw source data before transformation",
+    ],
+    correctAnswer: 1,
+    explanation: "Fact tables store quantitative business events (orders, sales, clicks) and contain foreign keys to dimension tables. Dimension tables store descriptive attributes.",
+  },
+  {
+    id: 158, type: "mcq", difficulty: "Medium", time: "2 min",
+    title: "SQL: CTE vs Subquery performance",
+    track: "Data Analyst", tags: ["SQL"],
+    description: "In most modern databases (PostgreSQL, BigQuery, Snowflake), which statement is generally true about CTEs vs subqueries?",
+    hints: ["CTEs can improve readability. But are they always faster?"],
+    options: [
+      "CTEs are always faster because they are cached and executed only once",
+      "Subqueries are always faster because they avoid the overhead of named expressions",
+      "In most databases, the query optimizer treats CTEs and inline subqueries similarly in terms of performance",
+      "CTEs require materialization and are always slower",
+    ],
+    correctAnswer: 2,
+    explanation: "In PostgreSQL ≥ 12, Snowflake, and BigQuery, the optimizer can inline CTEs like subqueries. CTEs do improve readability but don't guarantee a performance win. In older PostgreSQL, CTEs were always materialized (potential perf difference).",
+  },
+  {
+    id: 159, type: "mcq", difficulty: "Easy", time: "2 min",
+    title: "Python: vectorized vs loop",
+    track: "Data Analyst", tags: ["Python", "Performance"],
+    description: "Why are Pandas/NumPy vectorized operations faster than Python for-loops?",
+    hints: ["Think about where the computation actually runs."],
+    options: [
+      "They use multi-threading by default",
+      "They skip type checking",
+      "They execute compiled C/FORTRAN code on contiguous memory arrays, avoiding Python interpreter overhead",
+      "They cache results automatically",
+    ],
+    correctAnswer: 2,
+    explanation: "NumPy operations run in compiled C/FORTRAN code on contiguous memory (ndarray). Python loops interpret each iteration with GIL overhead and type dispatch, making them 10-100x slower for numeric operations.",
+  },
+  {
+    id: 160, type: "mcq", difficulty: "Medium", time: "2 min",
+    title: "Statistics: Type I vs Type II error",
+    track: "Data Analyst", tags: ["Statistics", "A/B Testing"],
+    description: "In an A/B test you incorrectly conclude the new feature increases conversion when it actually has no effect. Which error is this?",
+    hints: ["You rejected the null hypothesis when you shouldn't have."],
+    options: [
+      "Type II error (False Negative) — you missed a real effect",
+      "Type I error (False Positive) — you detected an effect that doesn't exist",
+      "Selection bias",
+      "Survivorship bias",
+    ],
+    correctAnswer: 1,
+    explanation: "Type I error = False Positive = rejecting a true null hypothesis. You 'saw' an effect that wasn't there. Type II error = False Negative = failing to detect a real effect.",
+  },
+
+  // ─── DATA SCIENTIST — MCQ ─────────────────────────────────────────────────
+
+  {
+    id: 171, type: "mcq", difficulty: "Medium", time: "2 min",
+    title: "ML: L1 vs L2 regularization",
+    track: "Data Scientist", tags: ["Machine Learning"],
+    description: "What does L1 (Lasso) regularization do that L2 (Ridge) regularization does not?",
+    hints: ["L1 adds |w| penalty; L2 adds w² penalty. Which penalty can drive a coefficient to exactly 0?"],
+    options: [
+      "L1 always converges faster than L2",
+      "L1 can drive some coefficients to exactly zero, enabling automatic feature selection",
+      "L1 prevents all overfitting while L2 does not",
+      "L1 only works with tree-based models",
+    ],
+    correctAnswer: 1,
+    explanation: "The L1 penalty creates a diamond-shaped constraint region with corners on axes — the optimum often lands exactly on an axis (w=0). L2's circular region rarely produces exact zeros. This makes Lasso useful for sparse feature selection.",
+  },
+  {
+    id: 172, type: "mcq", difficulty: "Easy", time: "2 min",
+    title: "ML: AUC-ROC interpretation",
+    track: "Data Scientist", tags: ["Machine Learning", "Metrics"],
+    description: "An AUC-ROC score of 0.5 for a binary classifier means:",
+    hints: ["Think of what a random coin flip classifier would score."],
+    options: [
+      "The model is correct 50% of the time",
+      "The model performs no better than random guessing",
+      "The model has 50% precision",
+      "The model is calibrated",
+    ],
+    correctAnswer: 1,
+    explanation: "AUC = 0.5 means the classifier cannot distinguish between classes — equivalent to random guessing. AUC = 1.0 is perfect; AUC = 0.0 means the model predicts everything backwards.",
+  },
+  {
+    id: 173, type: "mcq", difficulty: "Medium", time: "2 min",
+    title: "ML: Gradient Boosting vs Random Forest",
+    track: "Data Scientist", tags: ["Machine Learning", "Ensemble"],
+    description: "What is the key difference in how Random Forest and Gradient Boosting train their trees?",
+    hints: ["One trains trees in parallel; the other trains them sequentially."],
+    options: [
+      "Random Forest uses deeper trees; Gradient Boosting uses shallow ones",
+      "Random Forest trains trees sequentially correcting errors; Gradient Boosting trains them in parallel",
+      "Random Forest trains trees in parallel independently; Gradient Boosting trains trees sequentially, each correcting the residuals of the previous",
+      "There is no significant difference — both use bagging",
+    ],
+    correctAnswer: 2,
+    explanation: "Random Forest = bagging (parallel, independent trees, averaging reduces variance). Gradient Boosting = boosting (sequential trees that fit the residual errors of the ensemble, reducing bias).",
+  },
+
+  // ─── SOFTWARE ENGINEER — MCQ ─────────────────────────────────────────────
+
+  {
+    id: 181, type: "mcq", difficulty: "Easy", time: "2 min",
+    title: "Big-O: what does O(log n) indicate?",
+    track: "Software Engineer", tags: ["Algorithms", "Complexity"],
+    description: "An algorithm has O(log n) time complexity. Which operation typically produces this complexity?",
+    hints: ["This complexity arises when you halve the problem size at each step."],
+    options: [
+      "Linear search through an array",
+      "Two nested for-loops",
+      "Binary search or balanced BST lookup",
+      "Sorting an array",
+    ],
+    correctAnswer: 2,
+    explanation: "O(log n) arises when you divide the search space in half each step (binary search, BST operations, heap operations). Sorting is O(n log n); linear search is O(n); nested loops are O(n²).",
+  },
+  {
+    id: 182, type: "mcq", difficulty: "Easy", time: "2 min",
+    title: "Concurrency: what is a race condition?",
+    track: "Software Engineer", tags: ["Concurrency"],
+    description: "Which scenario best describes a race condition?",
+    hints: ["Think about two threads reading and writing shared state without coordination."],
+    options: [
+      "A program that runs faster than expected",
+      "Two threads accessing shared mutable state without synchronization, producing unpredictable results",
+      "A deadlock where two threads wait for each other's lock",
+      "A stack overflow from infinite recursion",
+    ],
+    correctAnswer: 1,
+    explanation: "A race condition occurs when the correctness of a program depends on the relative timing of threads. The fix is synchronization (mutex, lock, atomic operation). A deadlock is a separate (but related) concurrency problem.",
+  },
+
+  // ─── BACKEND ENGINEER — MCQ ──────────────────────────────────────────────
+
+  {
+    id: 191, type: "mcq", difficulty: "Medium", time: "2 min",
+    title: "Caching: which strategy avoids cache stampede?",
+    track: "Backend Engineer", tags: ["Caching", "System Design"],
+    description: "Many requests arrive simultaneously for the same expired cache key, all hitting the database. What pattern prevents this?",
+    hints: ["Sometimes called 'thundering herd'. One technique lets only one request refresh while others wait."],
+    options: [
+      "Write-through caching",
+      "Cache-aside with no TTL",
+      "Mutex/lock-based cache refresh (only one thread rebuilds; others wait or get stale data)",
+      "Increasing cache TTL to infinity",
+    ],
+    correctAnswer: 2,
+    explanation: "Mutex-based refresh (or probabilistic early expiration) prevents the thundering herd: a single request acquires a lock to refresh the cache while others wait or serve the stale value. Write-through doesn't address the stampede problem.",
+  },
+  {
+    id: 192, type: "mcq", difficulty: "Easy", time: "2 min",
+    title: "Database: B-Tree vs Hash index",
+    track: "Backend Engineer", tags: ["Database", "Indexing"],
+    description: "Which type of index supports range queries (e.g., `WHERE age BETWEEN 20 AND 30`)?",
+    hints: ["One index type maintains sorted order; the other only maps exact values."],
+    options: ["Hash index", "B-Tree index", "Bitmap index", "Full-text index"],
+    correctAnswer: 1,
+    explanation: "B-Tree indexes store keys in sorted order, making range queries, ORDER BY, and prefix lookups efficient. Hash indexes only support equality lookups (=) and cannot satisfy range conditions.",
+  },
+
+  // ─── DEVOPS — MCQ ────────────────────────────────────────────────────────
+
+  {
+    id: 196, type: "mcq", difficulty: "Easy", time: "2 min",
+    title: "Containers vs VMs",
+    track: "DevOps Engineer", tags: ["Docker", "Kubernetes"],
+    description: "What is the primary difference between a Docker container and a virtual machine?",
+    hints: ["Think about what each one virtualizes and where the OS kernel lives."],
+    options: [
+      "Containers are slower than VMs because they include a full OS",
+      "VMs share the host kernel; containers each run their own OS kernel",
+      "Containers share the host OS kernel; VMs include a full guest OS, making them heavier",
+      "There is no practical difference — they both provide OS-level isolation",
+    ],
+    correctAnswer: 2,
+    explanation: "Containers share the host kernel and isolate only the userspace (via namespaces/cgroups) — they start in milliseconds and use less memory. VMs include a full guest OS and hypervisor, providing stronger isolation but heavier overhead.",
+  },
+
 ];
 
 // Build a lookup map for O(1) access
