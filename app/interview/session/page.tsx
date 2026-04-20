@@ -14,11 +14,15 @@ import {
 
 interface Question {
   id: number;
-  type: "behavioral" | "technical" | "system-design";
+  type: "behavioral" | "technical" | "system-design" | "mcq";
   question: string;
   hint: string;
   followUp: string;
-  keywords: string[]; // concepts a strong answer should cover
+  keywords: string[];
+  // MCQ only
+  options?: string[];
+  correctAnswer?: number;
+  explanation?: string;
 }
 
 interface AIFeedback {
@@ -126,6 +130,67 @@ const ROLE_BANKS: Record<string, Question[]> = {
       followUp: "What techniques can you use to establish causation in the absence of a controlled experiment?",
       keywords: ["correlation", "causation", "confounder", "spurious", "experiment", "observational", "control", "randomization"],
     },
+    // MCQ — Data Analyst
+    {
+      id: 501, type: "mcq",
+      question: "In SQL, which clause filters results AFTER a GROUP BY aggregation?",
+      hint: "WHERE runs before grouping; this clause runs after aggregation on the grouped results.",
+      followUp: "Write a query that uses this clause to find departments with more than 5 employees.",
+      keywords: ["having", "where", "group by"],
+      options: ["WHERE", "HAVING", "FILTER BY", "QUALIFY"],
+      correctAnswer: 1,
+      explanation: "HAVING filters aggregated groups (e.g., HAVING COUNT(*) > 5). WHERE cannot reference aggregate functions like COUNT or SUM.",
+    },
+    {
+      id: 502, type: "mcq",
+      question: "What does a p-value of 0.03 mean in the context of an A/B test?",
+      hint: "The p-value is calculated assuming the null hypothesis is true — it is NOT the probability that the null is correct.",
+      followUp: "What is the difference between statistical significance and practical (business) significance?",
+      keywords: ["p-value", "null hypothesis", "significance"],
+      options: [
+        "There is a 3% chance the null hypothesis is correct",
+        "If the null hypothesis were true, there is a 3% chance of observing data this extreme or more extreme",
+        "The new variant has a 97% chance of being better",
+        "The effect size is 3%",
+      ],
+      correctAnswer: 1,
+      explanation: "p-value = P(data this extreme | null is true). It tells you how surprising the data is, not how likely your hypothesis is. Many analysts incorrectly treat it as P(null is true).",
+    },
+    {
+      id: 503, type: "mcq",
+      question: "Which Pandas method returns the count of missing values per column?",
+      hint: "Combine two Pandas methods: one to detect nulls (returns booleans), one to count them.",
+      followUp: "Once you've found missing values, what factors determine whether to drop rows or impute?",
+      keywords: ["isnull", "sum", "missing", "pandas"],
+      options: ["df.missing()", "df.null_count()", "df.isnull().sum()", "df.describe()"],
+      correctAnswer: 2,
+      explanation: "df.isnull() returns a boolean DataFrame (True = NaN). Calling .sum() counts the True values per column, giving missing value counts.",
+    },
+    {
+      id: 504, type: "mcq",
+      question: "In a star schema data warehouse, what is the PRIMARY role of the fact table?",
+      hint: "One table stores quantitative business events; the others store descriptive attributes.",
+      followUp: "How does a snowflake schema differ from a star schema, and when would you choose each?",
+      keywords: ["star schema", "fact table", "dimension"],
+      options: [
+        "Stores descriptive attributes like customer name and region",
+        "Contains foreign keys to dimension tables plus measurable business metrics (revenue, clicks, quantity)",
+        "Indexes dimension tables to speed up joins",
+        "Holds raw source data before any transformation",
+      ],
+      correctAnswer: 1,
+      explanation: "Fact tables store business events/measurements (orders, page views, transactions) and reference dimension tables via foreign keys. Dimension tables hold descriptive attributes (who, what, where).",
+    },
+    {
+      id: 505, type: "mcq",
+      question: "Two employees share rank 2 in a salary window. Which SQL window function assigns rank 4 to the next employee?",
+      hint: "One function skips numbers after ties; the other continues sequentially.",
+      followUp: "When would you use ROW_NUMBER() instead of RANK() or DENSE_RANK()?",
+      keywords: ["rank", "dense_rank", "window", "ties"],
+      options: ["ROW_NUMBER()", "DENSE_RANK()", "RANK()", "NTILE(4)"],
+      correctAnswer: 2,
+      explanation: "RANK() skips numbers after ties: (1, 2, 2, 4). DENSE_RANK() doesn't skip: (1, 2, 2, 3). ROW_NUMBER() always assigns unique sequential numbers regardless of ties.",
+    },
   ],
 
   "Data Scientist": [
@@ -170,6 +235,36 @@ const ROLE_BANKS: Record<string, Question[]> = {
       hint: "Think about serving (REST API / batch), versioning, data drift, model drift, and retraining triggers.",
       followUp: "What is data drift vs concept drift? How do you detect each?",
       keywords: ["deployment", "api", "serving", "monitoring", "data drift", "model drift", "retraining", "mlops", "pipeline"],
+    },
+    {
+      id: 521, type: "mcq",
+      question: "An AUC-ROC score of 0.5 for a binary classifier means:",
+      hint: "AUC measures the model's ability to distinguish between classes across all thresholds.",
+      followUp: "When would you prefer the Precision-Recall curve over the ROC curve?",
+      keywords: ["auc", "roc", "binary classification"],
+      options: [
+        "The model is correct exactly 50% of the time",
+        "The model performs no better than random guessing",
+        "The model has 50% precision",
+        "The model needs more training data",
+      ],
+      correctAnswer: 1,
+      explanation: "AUC = 0.5 means the model cannot separate positive from negative classes — equivalent to a random coin flip. AUC = 1.0 is perfect discrimination; AUC < 0.5 means the model predicts backwards.",
+    },
+    {
+      id: 522, type: "mcq",
+      question: "What does L1 (Lasso) regularization do that L2 (Ridge) does not?",
+      hint: "L1 adds |w| penalty; L2 adds w². Which can push a coefficient to exactly zero?",
+      followUp: "In what scenario would you choose Elastic Net over pure Lasso or Ridge?",
+      keywords: ["l1", "lasso", "regularization", "feature selection"],
+      options: [
+        "L1 always converges faster than L2",
+        "L1 can drive some coefficients to exactly zero, enabling automatic feature selection",
+        "L1 prevents overfitting while L2 does not",
+        "L1 works only with linear models",
+      ],
+      correctAnswer: 1,
+      explanation: "L1's diamond-shaped constraint region has corners on axes where coefficients land at exactly 0. L2's circular region rarely produces exact zeros. This makes Lasso a built-in feature selector.",
     },
     ...BEHAVIORAL_BANK.slice(0, 3),
   ],
@@ -352,6 +447,26 @@ const ROLE_BANKS: Record<string, Question[]> = {
       followUp: "What is Content Security Policy (CSP) and how does it mitigate XSS?",
       keywords: ["xss", "sql injection", "owasp", "sanitize", "parameterized query", "csp", "csrf", "escape", "input validation"],
     },
+    {
+      id: 511, type: "mcq",
+      question: "An algorithm halves the problem size at each step. What is its time complexity?",
+      hint: "Think about how many steps it takes to reduce n down to 1 when dividing by 2 each time.",
+      followUp: "Name two real data structures or algorithms that achieve O(log n) complexity.",
+      keywords: ["o(log n)", "binary search", "complexity"],
+      options: ["O(n)", "O(n²)", "O(log n)", "O(n log n)"],
+      correctAnswer: 2,
+      explanation: "Dividing in half each step gives log₂(n) steps → O(log n). Binary search and balanced BST lookups are classic examples.",
+    },
+    {
+      id: 512, type: "mcq",
+      question: "Which HTTP status code indicates that a resource was successfully created?",
+      hint: "2xx codes mean success. One specific code is returned when a new resource is POSTed.",
+      followUp: "What is the difference between 200 OK and 204 No Content?",
+      keywords: ["http", "rest", "status code"],
+      options: ["200 OK", "201 Created", "204 No Content", "202 Accepted"],
+      correctAnswer: 1,
+      explanation: "201 Created is the correct response when a POST request successfully creates a new resource. The response should include a Location header pointing to the new resource URL.",
+    },
     ...BEHAVIORAL_BANK.slice(0, 2),
   ],
 
@@ -514,23 +629,28 @@ function selectQuestions(role: string, round: string, type: string, duration: st
   // Filter by round type
   let pool: Question[];
   if (round === "screening" || round === "final" || round === "managerial") {
-    // Mostly behavioral
-    pool = bank.filter((q) => q.type === "behavioral");
+    // Mostly behavioral + a couple of MCQs
+    const beh  = bank.filter((q) => q.type === "behavioral");
+    const mcqs = bank.filter((q) => q.type === "mcq").slice(0, 2);
     const tech = bank.filter((q) => q.type === "technical").slice(0, 1);
-    pool = [...pool, ...tech];
+    pool = [...beh, ...mcqs, ...tech];
   } else if (round === "system-design") {
     const sd   = bank.filter((q) => q.type === "system-design");
     const tech = bank.filter((q) => q.type === "technical");
     const beh  = bank.filter((q) => q.type === "behavioral").slice(0, 1);
-    pool = [...sd, ...tech, ...beh];
+    const mcqs = bank.filter((q) => q.type === "mcq").slice(0, 2);
+    pool = [...sd, ...tech, ...beh, ...mcqs];
   } else {
-    // Technical rounds 1 & 2
+    // Technical rounds — always mix MCQ + technical + behavioral
     if (type === "behavioral") {
       pool = bank.filter((q) => q.type === "behavioral");
     } else if (type === "technical") {
-      pool = bank.filter((q) => q.type !== "behavioral");
+      const tech = bank.filter((q) => q.type !== "behavioral");
+      const mcqs = bank.filter((q) => q.type === "mcq");
+      pool = [...tech, ...mcqs];
     } else {
-      pool = bank; // mixed
+      // mixed: ensure at least some MCQs alongside technical and behavioral
+      pool = bank;
     }
   }
 
@@ -547,11 +667,13 @@ const typeColors: Record<string, string> = {
   behavioral:     "text-violet-400 bg-violet-500/10 border-violet-500/20",
   technical:      "text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
   "system-design":"text-amber-400 bg-amber-500/10 border-amber-500/20",
+  mcq:            "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
 };
 const typeLabels: Record<string, string> = {
   behavioral:     "Behavioral",
   technical:      "Technical",
   "system-design":"System Design",
+  mcq:            "MCQ",
 };
 
 type Phase = "intro" | "interview" | "complete";
@@ -575,6 +697,7 @@ export default function InterviewSessionPage() {
   const [allFeedback, setAllFeedback] = useState<AIFeedback[]>([]);
   const [showHint, setShowHint] = useState(false);
   const [showFollowUp, setShowFollowUp] = useState(false);
+  const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Load config from localStorage on mount
@@ -622,25 +745,44 @@ export default function InterviewSessionPage() {
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
   const handleSubmitAnswer = async () => {
+    const currentQuestion = questions[currentQ];
+
+    // MCQ: instant evaluation based on selected option
+    if (currentQuestion.type === "mcq") {
+      if (selectedOption === null) return;
+      const isCorrect = selectedOption === currentQuestion.correctAnswer;
+      setFeedback({
+        score: isCorrect ? 90 : 15,
+        strengths: isCorrect ? ["Correct! You identified the right answer."] : [],
+        improvements: isCorrect ? [] : [
+          `Correct answer: ${String.fromCharCode(65 + (currentQuestion.correctAnswer ?? 0))}. ${currentQuestion.options?.[currentQuestion.correctAnswer ?? 0] ?? ""}`,
+          ...(currentQuestion.explanation ? [currentQuestion.explanation] : [currentQuestion.hint]),
+        ],
+      });
+      setShowFollowUp(true);
+      return;
+    }
+
     if (!answer.trim()) return;
     setEvaluating(true);
     setShowFollowUp(false);
 
-    // Simulate brief evaluation delay (real AI call would go here)
     await new Promise((r) => setTimeout(r, 900));
 
-    const q = questions[currentQ];
-    const result = evaluateAnswer(answer, q);
-
+    const result = evaluateAnswer(answer, currentQuestion);
     setFeedback(result);
     setEvaluating(false);
     setShowFollowUp(true);
   };
 
   const handleNext = () => {
-    setAnswers((p) => [...p, answer]);
+    const displayAnswer = q.type === "mcq"
+      ? (selectedOption !== null ? q.options?.[selectedOption] ?? "" : "")
+      : answer;
+    setAnswers((p) => [...p, displayAnswer]);
     setAllFeedback((p) => [...p, feedback!]);
     setAnswer("");
+    setSelectedOption(null);
     setFeedback(null);
     setShowHint(false);
     setShowFollowUp(false);
@@ -655,6 +797,7 @@ export default function InterviewSessionPage() {
     setAnswers((p) => [...p, ""]);
     setAllFeedback((p) => [...p, { score: 0, strengths: [], improvements: ["Skipped — no answer provided"] }]);
     setAnswer("");
+    setSelectedOption(null);
     setFeedback(null);
     setShowHint(false);
     setShowFollowUp(false);
@@ -791,29 +934,60 @@ export default function InterviewSessionPage() {
                 </motion.div>
               )}
 
-              <textarea
-                ref={textareaRef}
-                value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
-                placeholder="Type your answer here… the more detail you provide, the more accurate the feedback"
-                disabled={evaluating || showFollowUp}
-                rows={6}
-                className="w-full px-4 py-3 bg-white/3 border border-white/8 rounded-xl text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/30 transition-all resize-none disabled:opacity-60"
-              />
-
-              {/* Word count indicator */}
-              <div className="flex items-center justify-between -mt-2">
-                <span className={`text-xs ${
-                  answer.trim().split(/\s+/).filter(Boolean).length >= 70
-                    ? "text-emerald-500"
-                    : answer.trim().split(/\s+/).filter(Boolean).length >= 30
-                    ? "text-amber-500"
-                    : "text-slate-600"
-                }`}>
-                  {answer.trim() ? `${answer.trim().split(/\s+/).filter(Boolean).length} words` : ""}
-                </span>
-                <span className="text-xs text-slate-600">Aim for 70+ words for full credit</span>
-              </div>
+              {/* MCQ options or text answer */}
+              {q.type === "mcq" && q.options ? (
+                <div className="space-y-2">
+                  {q.options.map((opt, i) => {
+                    const isSelected  = selectedOption === i;
+                    const isCorrect   = showFollowUp && i === q.correctAnswer;
+                    const isWrong     = showFollowUp && isSelected && i !== q.correctAnswer;
+                    return (
+                      <button key={i} onClick={() => !showFollowUp && setSelectedOption(i)}
+                        disabled={showFollowUp}
+                        className={`w-full text-left px-4 py-2.5 rounded-xl border text-sm transition-all flex items-center gap-3 ${
+                          isCorrect ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300" :
+                          isWrong   ? "bg-rose-500/15 border-rose-500/40 text-rose-300" :
+                          isSelected ? "bg-indigo-500/15 border-indigo-500/40 text-white" :
+                          "bg-white/3 border-white/8 text-slate-300 hover:border-white/20 hover:bg-white/5"
+                        }`}
+                      >
+                        <span className={`w-6 h-6 shrink-0 rounded-lg flex items-center justify-center text-xs font-bold border ${
+                          isCorrect ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300" :
+                          isWrong   ? "bg-rose-500/20 border-rose-500/40 text-rose-300" :
+                          isSelected ? "bg-indigo-500/20 border-indigo-500/40 text-indigo-300" :
+                          "bg-white/5 border-white/15 text-slate-500"
+                        }`}>{String.fromCharCode(65 + i)}</span>
+                        {opt}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <>
+                  <textarea
+                    ref={textareaRef}
+                    value={answer}
+                    onChange={(e) => setAnswer(e.target.value)}
+                    placeholder="Type your answer here… the more detail you provide, the more accurate the feedback"
+                    disabled={evaluating || showFollowUp}
+                    rows={6}
+                    className="w-full px-4 py-3 bg-white/3 border border-white/8 rounded-xl text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/30 transition-all resize-none disabled:opacity-60"
+                  />
+                  {/* Word count indicator */}
+                  <div className="flex items-center justify-between -mt-2">
+                    <span className={`text-xs ${
+                      answer.trim().split(/\s+/).filter(Boolean).length >= 70
+                        ? "text-emerald-500"
+                        : answer.trim().split(/\s+/).filter(Boolean).length >= 30
+                        ? "text-amber-500"
+                        : "text-slate-600"
+                    }`}>
+                      {answer.trim() ? `${answer.trim().split(/\s+/).filter(Boolean).length} words` : ""}
+                    </span>
+                    <span className="text-xs text-slate-600">Aim for 70+ words for full credit</span>
+                  </div>
+                </>
+              )}
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -849,7 +1023,7 @@ export default function InterviewSessionPage() {
                 {!showFollowUp && (
                   <button
                     onClick={handleSubmitAnswer}
-                    disabled={!answer.trim() || evaluating}
+                    disabled={q.type === "mcq" ? selectedOption === null || evaluating : !answer.trim() || evaluating}
                     className="flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-sm font-medium rounded-xl hover:shadow-lg hover:shadow-indigo-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {evaluating ? (
@@ -910,10 +1084,29 @@ export default function InterviewSessionPage() {
                   </div>
 
                   {showFollowUp && (
-                    <div className="bg-indigo-500/8 border border-indigo-500/20 rounded-xl p-3">
-                      <p className="text-xs font-medium text-indigo-400 mb-1">Follow-up question:</p>
-                      <p className="text-sm text-slate-300">{q.followUp}</p>
-                    </div>
+                    <>
+                      {/* Model answer / key insight */}
+                      <div className="bg-emerald-500/6 border border-emerald-500/20 rounded-xl p-3 space-y-1">
+                        <p className="text-xs font-medium text-emerald-400">
+                          {q.type === "mcq" ? "Explanation" : "Key Insight"}
+                        </p>
+                        <p className="text-xs text-slate-300 leading-relaxed">
+                          {q.type === "mcq"
+                            ? (q.explanation ?? q.hint)
+                            : q.hint}
+                        </p>
+                        {q.keywords.length > 0 && q.type !== "mcq" && (
+                          <p className="text-xs text-slate-500 mt-1">
+                            Strong answers cover: {q.keywords.slice(0, 5).join(", ")}
+                          </p>
+                        )}
+                      </div>
+                      {/* Follow-up question */}
+                      <div className="bg-indigo-500/8 border border-indigo-500/20 rounded-xl p-3">
+                        <p className="text-xs font-medium text-indigo-400 mb-1">Follow-up question:</p>
+                        <p className="text-sm text-slate-300">{q.followUp}</p>
+                      </div>
+                    </>
                   )}
 
                   <div className="flex justify-end">
