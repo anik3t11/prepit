@@ -10,6 +10,7 @@ import {
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from "recharts";
+import { useUser } from "@/lib/useUser";
 
 const activityData = [
   { day: "Mon", questions: 8 },
@@ -48,6 +49,13 @@ const quickActions = [
 ];
 
 export default function DashboardPage() {
+  const { displayName } = useUser();
+  const hour    = new Date().getHours();
+  const greeting =
+    hour < 12 ? "Good morning" :
+    hour < 18 ? "Good afternoon" :
+    "Good evening";
+
   return (
     <div className="space-y-6 max-w-6xl">
       {/* Welcome */}
@@ -57,8 +65,8 @@ export default function DashboardPage() {
         className="flex items-center justify-between"
       >
         <div>
-          <h1 className="text-2xl font-bold text-white">Good morning, John 👋</h1>
-          <p className="text-slate-400 text-sm mt-1">You have 3 pending topics to review today.</p>
+          <h1 className="text-2xl font-bold text-white">{greeting}, {displayName} 👋</h1>
+          <p className="text-slate-400 text-sm mt-1">Ready to prep? Pick a question and get started.</p>
         </div>
         <div className="hidden sm:flex items-center gap-2 px-4 py-2 glass border border-amber-500/20 rounded-xl text-sm text-amber-300">
           <Flame className="w-4 h-4" />

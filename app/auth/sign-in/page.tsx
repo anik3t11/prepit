@@ -3,27 +3,33 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Zap, Mail, Lock, Eye, EyeOff, ArrowRight, GitFork } from "lucide-react";
+import { Zap, Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [email, setEmail]               = useState("");
+  const [password, setPassword]         = useState("");
+  const [loading, setLoading]           = useState(false);
+  const [error, setError]               = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    // TODO: Supabase auth
-    setTimeout(() => {
+    setError("");
+
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (authError) {
+      setError(authError.message);
       setLoading(false);
+    } else {
       window.location.href = "/dashboard";
-    }, 1500);
+    }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
-      {/* Background */}
       <div className="absolute inset-0 animated-gradient" />
       <div className="orb w-[500px] h-[500px] bg-indigo-600/15 -top-32 -left-32 absolute" />
       <div className="orb w-[400px] h-[400px] bg-violet-600/10 -bottom-32 -right-32 absolute" />
@@ -50,17 +56,13 @@ export default function SignInPage() {
 
         {/* Card */}
         <div className="glass border border-white/10 rounded-2xl p-8">
-          {/* OAuth */}
-          <button className="w-full flex items-center justify-center gap-3 px-4 py-3 glass border border-white/10 rounded-xl text-sm text-slate-300 hover:border-white/20 hover:text-white transition-all mb-6">
-            <GitFork className="w-4 h-4" />
-            Continue with GitHub
-          </button>
-
-          <div className="relative flex items-center gap-4 mb-6">
-            <div className="flex-1 h-px bg-white/8" />
-            <span className="text-xs text-slate-600">or continue with email</span>
-            <div className="flex-1 h-px bg-white/8" />
-          </div>
+          {/* Error */}
+          {error && (
+            <div className="flex items-center gap-2 mb-4 px-3 py-2.5 bg-rose-500/10 border border-rose-500/20 rounded-xl text-sm text-rose-400">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              {error}
+            </div>
+          )}
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -82,9 +84,6 @@ export default function SignInPage() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-sm text-slate-400">Password</label>
-                <Link href="#" className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
-                  Forgot password?
-                </Link>
               </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
@@ -114,10 +113,7 @@ export default function SignInPage() {
               {loading ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
-                <>
-                  Sign In
-                  <ArrowRight className="w-4 h-4" />
-                </>
+                <>Sign In <ArrowRight className="w-4 h-4" /></>
               )}
             </button>
           </form>
